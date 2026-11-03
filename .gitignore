@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Downloaded datasets (re-downloaded automatically by the pipeline)
+data/raw/
+
+# Website (Next.js / Vercel)
+node_modules/
+.next/
+.vercel/
+
+# OS
+.DS_Store

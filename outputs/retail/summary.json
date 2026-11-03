@@ -1,0 +1,80 @@
+{
+  "dataset": {
+    "name": "M5 (Walmart daily unit sales)",
+    "store_id": "CA_1",
+    "n_products": 500,
+    "first_date": "2011-01-29",
+    "last_date": "2016-06-19",
+    "scored_cutoffs": [
+      "2016-02-28",
+      "2016-03-27",
+      "2016-04-24",
+      "2016-05-22"
+    ]
+  },
+  "config": {
+    "store_id": "CA_1",
+    "n_items": 500,
+    "min_history_days": 730,
+    "seed": 42,
+    "horizon": 28,
+    "n_windows": 4,
+    "calibration_windows": 2,
+    "levels": [
+      80,
+      95
+    ],
+    "lead_time_days": 7,
+    "service_level": 0.95,
+    "history_days_exported": 182
+  },
+  "metrics": [
+    {
+      "model": "AutoETS",
+      "wape": 0.7655,
+      "mase": 0.9265,
+      "rmse": 1.9624,
+      "bias": -0.0128,
+      "coverage_80": 0.7057,
+      "coverage_95": 0.8267
+    },
+    {
+      "model": "LightGBM",
+      "wape": 0.7711,
+      "mase": 0.9901,
+      "rmse": 1.8673,
+      "bias": 0.0217,
+      "coverage_80": 0.7211,
+      "coverage_95": 0.8616
+    },
+    {
+      "model": "SeasonalNaive",
+      "wape": 0.9154,
+      "mase": 1.0628,
+      "rmse": 2.4292,
+      "bias": -0.0248,
+      "coverage_80": 0.8184,
+      "coverage_95": 0.9046
+    }
+  ],
+  "inventory": [
+    {
+      "model": "AutoETS",
+      "achieved_service_level": 0.936,
+      "avg_safety_stock_units": 5.7207,
+      "safety_stock_value_per_cutoff": 10363.7476
+    },
+    {
+      "model": "LightGBM",
+      "achieved_service_level": 0.942,
+      "avg_safety_stock_units": 5.6398,
+      "safety_stock_value_per_cutoff": 10210.8882
+    },
+    {
+      "model": "SeasonalNaive",
+      "achieved_service_level": 0.9465,
+      "avg_safety_stock_units": 7.426,
+      "safety_stock_value_per_cutoff": 13491.0934
+    }
+  ]
+}

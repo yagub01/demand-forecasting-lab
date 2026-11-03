@@ -1,0 +1,8 @@
+# Tested with Python 3.13.
+pandas==2.3.3
+numpy==2.3.5  # NumPy 2.5 triggers deprecation warnings inside pandas 2.3
+lightgbm==4.7.0
+scikit-learn==1.9.1
+statsforecast==2.1.1
+mlforecast==1.1.0
+pytest==9.2.0
