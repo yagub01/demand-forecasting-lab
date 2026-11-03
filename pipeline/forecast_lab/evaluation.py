@@ -1,33 +1,53 @@
-"""Prediction intervals and accuracy metrics.
+"""Ensemble, prediction ranges and accuracy metrics.
 
-Intervals: for each model, product and cutoff, the range is built from that model's
-own forecast errors on the same product over the previous `calibration_windows`
-periods (8 weeks by default). Only errors already known at the cutoff are used.
-The same method applies to every model, so their ranges are directly comparable.
+Ensemble: the average of the `ensemble_size` most accurate models on the calibration
+periods, which come before every test period.
+
+Ranges: for each model, product and cutoff, the range is built from that model's own
+forecast errors on the same product over the previous `calibration_windows` periods
+(16 weeks by default), with bounds rounded to whole units. Only errors already known
+at the cutoff are used. The same method applies to every model, so their ranges are
+directly comparable.
 """
 
 import numpy as np
 import pandas as pd
 
 from .config import RetailConfig
-from .models import MODEL_NAMES
 
 
-def to_long(cv: pd.DataFrame) -> pd.DataFrame:
+def to_long(cv: pd.DataFrame, models: list[str]) -> pd.DataFrame:
     """One row per product, date, cutoff and model. Forecasts below zero are set to zero."""
     long = cv.melt(
-        id_vars=["unique_id", "ds", "cutoff", "y"],
-        value_vars=MODEL_NAMES,
-        var_name="model",
-        value_name="yhat",
+        id_vars=["unique_id", "ds", "cutoff", "y"], value_vars=models, var_name="model", value_name="yhat"
     )
     long["yhat"] = long["yhat"].clip(lower=0)
     long["error"] = long["y"] - long["yhat"]
     return long
 
 
+def _wape(df: pd.DataFrame) -> float:
+    return df["error"].abs().sum() / df["y"].sum()
+
+
+def choose_ensemble(long: pd.DataFrame, cfg: RetailConfig) -> tuple[list[str], pd.Series]:
+    """Pick the most accurate models on the calibration periods (never the test periods)."""
+    cutoffs = sorted(long["cutoff"].unique())[: cfg.calibration_windows]
+    calib = long[long["cutoff"].isin(cutoffs)]
+    scores = calib.groupby("model").apply(_wape, include_groups=False).sort_values()
+    return scores.index[: cfg.ensemble_size].tolist(), scores
+
+
+def add_ensemble(long: pd.DataFrame, members: list[str]) -> pd.DataFrame:
+    keys = ["unique_id", "ds", "cutoff", "y"]
+    ens = long[long["model"].isin(members)].groupby(keys, as_index=False)["yhat"].mean()
+    ens["model"] = "Ensemble"
+    ens["error"] = ens["y"] - ens["yhat"]
+    return pd.concat([long, ens[long.columns]], ignore_index=True)
+
+
 def add_intervals(long: pd.DataFrame, cfg: RetailConfig) -> pd.DataFrame:
-    """Attach lo/hi bounds and the daily error spread (sigma); keep only the scored windows."""
+    """Attach lo/hi bounds and the daily error spread (sigma); keep only the test periods."""
     cutoffs = sorted(long["cutoff"].unique())
     keys = ["model", "unique_id"]
     scored = []
@@ -42,8 +62,12 @@ def add_intervals(long: pd.DataFrame, cfg: RetailConfig) -> pd.DataFrame:
             stats[f"q_hi_{level}"] = grouped.quantile(1 - tail)
         current = current.merge(stats.reset_index(), on=keys, how="left")
         for level in cfg.levels:
-            current[f"lo_{level}"] = (current["yhat"] + current.pop(f"q_lo_{level}")).clip(lower=0)
-            current[f"hi_{level}"] = (current["yhat"] + current.pop(f"q_hi_{level}")).clip(lower=0)
+            # Sales are whole numbers, so the bounds are rounded to the nearest whole number.
+            # (A bound of 0.98 would otherwise exclude a sale of 1.)
+            lo = current["yhat"] + current.pop(f"q_lo_{level}")
+            hi = current["yhat"] + current.pop(f"q_hi_{level}")
+            current[f"lo_{level}"] = np.floor(lo + 0.5).clip(lower=0)
+            current[f"hi_{level}"] = np.floor(hi + 0.5).clip(lower=0)
         scored.append(current)
     return pd.concat(scored, ignore_index=True)
 
@@ -58,8 +82,13 @@ def naive_scale(sales: pd.DataFrame, before: pd.Timestamp) -> pd.Series:
     return diff.groupby(hist["unique_id"]).mean().replace(0, np.nan).rename("scale")
 
 
-def summarize(fc: pd.DataFrame, scale: pd.Series, levels: tuple[int, ...]) -> pd.DataFrame:
-    """Overall accuracy per model across all products and scored windows."""
+def summarize(
+    fc: pd.DataFrame, scale: pd.Series, levels: tuple[int, ...], event_dates: set | None = None
+) -> pd.DataFrame:
+    """Overall accuracy per model across all scored products and test periods.
+
+    `event_dates`, if given, splits WAPE into days around events and all other days.
+    """
     rows = []
     for model, g in fc.groupby("model"):
         abs_err = g["error"].abs()
@@ -77,6 +106,10 @@ def summarize(fc: pd.DataFrame, scale: pd.Series, levels: tuple[int, ...]) -> pd
         for level in levels:
             inside = (g["y"] >= g[f"lo_{level}"]) & (g["y"] <= g[f"hi_{level}"])
             row[f"coverage_{level}"] = inside.mean()
+        if event_dates is not None:
+            near_event = g["ds"].isin(event_dates)
+            row["wape_event_days"] = _wape(g[near_event])
+            row["wape_other_days"] = _wape(g[~near_event])
         rows.append(row)
     return pd.DataFrame(rows).sort_values("wape").reset_index(drop=True)
 

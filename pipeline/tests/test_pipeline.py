@@ -5,8 +5,42 @@ import pandas as pd
 import pytest
 
 from forecast_lab.config import RetailConfig
-from forecast_lab.evaluation import add_intervals, summarize
+from forecast_lab.data_m5 import _event_features
+from forecast_lab.evaluation import add_ensemble, add_intervals, choose_ensemble, summarize
 from forecast_lab.inventory import stock_targets
+from forecast_lab.models import days_since_sale
+
+
+def test_days_since_sale():
+    x = np.array([np.nan, 0, 2, 0, 0, 1, 0.0])
+    np.testing.assert_array_equal(days_since_sale(x), [np.nan, np.nan, 0, 1, 2, 0, 1])
+
+
+def test_event_features_count_down_and_up():
+    ds = pd.date_range("2020-01-01", periods=6)
+    cal = pd.DataFrame({"ds": ds, "event_name_1": [None, None, "X", None, None, None],
+                        "event_type_1": [None, None, "National", None, None, None]})
+    f = _event_features(cal, max_days=2)
+    assert f["days_to_event"].tolist() == [2, 1, 0, 3, 3, 3]
+    assert f["next_event"].tolist() == ["X", "X", "X", "none", "none", "none"]
+    assert f["days_since_event"].tolist() == [3, 3, 0, 1, 2, 3]
+    assert f["prev_event"].tolist() == ["none", "none", "X", "X", "X", "none"]
+
+
+def test_ensemble_chosen_on_calibration_only():
+    cfg = RetailConfig(calibration_windows=1, ensemble_size=1)
+    rows = []
+    # Model A is better in the first (calibration) period, model B in the second (test) period.
+    for cutoff, err_a, err_b in [("2020-01-01", 1, 5), ("2020-02-01", 5, 1)]:
+        for model, err in [("A", err_a), ("B", err_b)]:
+            rows.append({"unique_id": "P", "ds": pd.Timestamp(cutoff) + pd.Timedelta(days=1),
+                         "cutoff": pd.Timestamp(cutoff), "y": 10.0, "model": model,
+                         "yhat": 10.0 - err, "error": float(err)})
+    long = pd.DataFrame(rows)
+    members, _ = choose_ensemble(long, cfg)
+    assert members == ["A"]
+    ens = add_ensemble(long, ["A", "B"])
+    assert ens.loc[ens["model"] == "Ensemble", "yhat"].tolist() == [7.0, 7.0]
 
 
 def _forecasts(errors_by_cutoff: dict[str, list[float]], yhat: float = 10.0) -> pd.DataFrame:
@@ -28,8 +62,9 @@ def test_intervals_use_only_earlier_errors():
     fc = add_intervals(long, cfg)
     # Only the second cutoff is scored, and its range comes from the first cutoff's errors.
     assert fc["cutoff"].nunique() == 1
-    assert fc["lo_80"].iloc[0] == pytest.approx(10 + np.quantile([-2, -1, 0, 1, 2], 0.1))
-    assert fc["hi_80"].iloc[0] == pytest.approx(10 + np.quantile([-2, -1, 0, 1, 2], 0.9))
+    # 10th and 90th percentiles of the errors are -1.6 and +1.6; bounds are rounded to whole units.
+    assert fc["lo_80"].iloc[0] == 8
+    assert fc["hi_80"].iloc[0] == 12
 
 
 def test_summary_metrics():

@@ -4,8 +4,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
-# Downloaded datasets (re-downloaded automatically by the pipeline)
+# Downloaded datasets and saved backtests (recreated by the pipeline)
 data/raw/
+data/cache/
 
 # Website (Next.js / Vercel)
 node_modules/

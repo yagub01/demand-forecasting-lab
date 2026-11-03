@@ -59,6 +59,8 @@ def export_retail(
     series_metrics: pd.DataFrame,
     targets: pd.DataFrame,
     inventory: pd.DataFrame,
+    tuning: dict,
+    ensemble: dict,
 ) -> None:
     cutoffs = sorted(fc["cutoff"].unique())
     last_cutoff = pd.Timestamp(cutoffs[-1])
@@ -76,6 +78,8 @@ def export_retail(
                 "scored_cutoffs": [_clean(pd.Timestamp(c)) for c in cutoffs],
             },
             "config": asdict(cfg),
+            "tuning": tuning,
+            "ensemble": ensemble,
             "metrics": _records(metrics),
             "inventory": _records(inventory),
         },

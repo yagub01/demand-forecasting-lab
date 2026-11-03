@@ -8,52 +8,100 @@ The first dataset is retail (Walmart). More industries will follow.
 
 ## Retail results
 
-500 randomly sampled products from one Walmart store in California (M5 dataset), forecast 28 days ahead. Scores cover four 28-day periods from 28 February to 19 June 2016, with each model refitted at every cutoff.
+One Walmart store in California (M5 dataset). The machine-learning models train on all 2,872 products with at least two years of sales; every model is scored on the same random sample of 500 of them, forecasting 28 days ahead.
+
+Results cover four 28-day test periods from 29 February to 19 June 2016. Model settings and ensemble members were chosen on earlier periods, so the test periods played no part in any choice (one disclosed exception, below).
 
 ### Forecast accuracy
 
 | Model | WAPE | MASE | RMSE | Bias | 80% range coverage | 95% range coverage |
 |---|---|---|---|---|---|---|
-| AutoETS | **76.6%** | **0.93** | 1.96 | −1.3% | 70.6% | 82.7% |
-| LightGBM | 77.1% | 0.99 | **1.87** | +2.2% | 72.1% | 86.2% |
-| Seasonal naive | 91.5% | 1.06 | 2.43 | −2.5% | 81.8% | 90.5% |
+| Ensemble | **75.4%** | 0.930 | 1.88 | −2.4% | 89.0% | 95.8% |
+| LightGBM, direct | 76.3% | 0.945 | 1.90 | −6.8% | 88.8% | 95.9% |
+| AutoETS | 76.6% | 0.927 | 1.96 | −1.3% | 88.6% | 95.6% |
+| TSB | 77.9% | 0.945 | 1.96 | +0.9% | 88.5% | 95.3% |
+| LightGBM, recursive | 78.6% | 1.002 | 1.88 | +6.5% | 89.4% | 96.2% |
+| Croston (SBA) | 79.5% | 0.967 | 1.97 | −2.4% | 88.9% | 95.7% |
+| Seasonal naive | 91.5% | 1.063 | 2.43 | −2.5% | 83.5% | 93.5% |
+
+The ensemble is the average of LightGBM (direct), AutoETS and TSB, the three most accurate models on the calibration periods.
 
 ### Inventory: 7-day lead time, 95% target service level
 
 | Model | Achieved service level | Safety stock per product (units) | Safety stock value, all 500 products |
 |---|---|---|---|
-| LightGBM | 94.2% | 5.6 | $10,211 |
-| AutoETS | 93.6% | 5.7 | $10,364 |
-| Seasonal naive | 94.7% | 7.4 | $13,491 |
+| Ensemble | 94.2% | 5.7 | $10,350 |
+| LightGBM, direct | 91.6% | 5.7 | $10,341 |
+| AutoETS | 94.0% | 5.8 | $10,560 |
+| TSB | 94.7% | 5.9 | $10,692 |
+| LightGBM, recursive | 96.0% | 5.7 | $10,326 |
+| Croston (SBA) | 93.3% | 5.9 | $10,741 |
+| Seasonal naive | 95.3% | 7.6 | $13,821 |
+
+### Real-world events
+
+The models use about 30 calendar events (national holidays, cultural and religious events, major sporting events), including the days before and after each one.
+
+| Model | WAPE on event days and the 3 days before | WAPE on other days |
+|---|---|---|
+| Ensemble | 76.6% | 74.8% |
+| LightGBM, direct | 77.2% | 75.9% |
+| AutoETS | 78.2% | 75.7% |
+| Seasonal naive | 93.6% | 90.5% |
+
+To measure the effect of the event information, LightGBM (direct) was refitted without it ([`pipeline/experiments/event_features.py`](pipeline/experiments/event_features.py)):
+
+| | With event features | Without |
+|---|---|---|
+| WAPE, all days | 76.3% | 76.5% |
+| WAPE, event days and the 3 days before | 77.2% | 77.5% |
+| WAPE, other days | 75.9% | 76.0% |
 
 ### Findings
 
-- **Both advanced models clearly beat the baseline.** AutoETS and LightGBM cut total error (WAPE) by about 15 percentage points compared with repeating last week's sales.
-- **AutoETS and LightGBM are close.** AutoETS has slightly lower average error; LightGBM makes fewer large misses (lower RMSE). In this untuned setup, the machine-learning model does not outperform a well-established statistical method.
-- **Better forecasts reduce inventory.** At nearly the same service level, LightGBM needs 24% less safety stock than the baseline ($10,211 versus $13,491 at shelf prices).
-- **The ranges are too narrow.** The 95% ranges contain actual sales only 83–90% of the time. The stock recommendations still come close to the 95% target (93.6–94.7%). Two likely reasons: daily errors partly cancel out over 7 days, and stock is rounded up to whole units.
+- **The ensemble is the most accurate model, but its lead is small.** Its error is 1.5% lower than AutoETS and 17.6% lower than the seasonal naive baseline. Compared with the first version of this project (untuned LightGBM trained on 500 products, WAPE 77.1%), error fell by 2.2%. All six models other than the baseline land between 75% and 80%. This suggests that most of the remaining error, at the level of one product on one day, is random variation that no model can remove.
+- **Direct beats recursive.** The LightGBM variant that never feeds its own predictions back in is more accurate (76.3% versus 78.6%). The two variants err in opposite directions (−6.8% and +6.5% bias), which is one reason averaging helps.
+- **Events matter, but the event features add little.** Every model is less accurate around events. Removing the event features from LightGBM raises its error only slightly, by 0.2 percentage points overall and 0.3 on event days.
+- **Better forecasts reduce inventory.** At a similar service level, the ensemble needs 25% less safety stock than the baseline ($10,350 versus $13,821 at shelf prices).
+- **Bias matters for stock decisions.** LightGBM (direct) needs about the same safety stock as the ensemble but reaches only 91.6% service, because it under-forecasts by 6.8%.
+- **The 95% ranges are on target (95.3–96.2%).** The 80% ranges contain 88.5–89.4% of actual sales, above target. This is unavoidable for slow sellers. A product that sells 0 or 1 unit on most days can only have a range of "0" or "0 to 1", and those may cover, say, 70% or 95% of days, with nothing in between.
 
-Error levels around 75% are normal for daily sales of individual products. Most of these products sell a few units a day or fewer, so day-to-day variation is largely random. [docs/methodology.md](docs/methodology.md) explains every step, metric and limitation in plain language.
+### Against the targets set at the start
+
+| Target | Result |
+|---|---|
+| At least 5% lower error than AutoETS | **Not met:** 1.5% lower |
+| Ranges contain actual sales at their stated rate | **Met for 95%**; 80% ranges over-cover, as explained above |
+| Stock recommendations reach the 95% service level | **Close:** 94.2% for the ensemble |
+
+### Change made after seeing test results
+
+One change was made after examining the test periods. Range bounds are now rounded to whole units. The test results showed that ranges ending just below a whole number (for example 0.98) excluded actual sales of 1. The fix follows from sales being whole numbers and has no tuned setting. Point forecasts, accuracy and stock results are unaffected; only range coverage changed (95% ranges previously contained 82.7–93.5% of actual sales).
+
+[docs/methodology.md](docs/methodology.md) explains every step, metric and limitation in plain language.
 
 ## How it works
 
-1. **Prepare** (`data_m5.py`): sample products, convert to one row per product per day, and add price, discount, event and SNAP-day information.
-2. **Backtest** (`models.py`): seasonal naive, AutoETS (statsforecast) and LightGBM (mlforecast), all refitted at each cutoff.
-3. **Prediction ranges** (`evaluation.py`): built from each model's own errors over the previous eight weeks, using the same method for every model.
-4. **Metrics** (`evaluation.py`): WAPE, MASE, RMSE, bias and range coverage.
-5. **Inventory** (`inventory.py`): target stock = expected demand over the lead time + safety stock, then checked against actual sales.
-6. **Export** (`export.py`): summary, product list and one file per product for the website.
+1. **Prepare** (`data_m5.py`): select products, convert to one row per product per day, and add events, SNAP days, prices and discounts. Only information that would be known at forecast time is used.
+2. **Tune** (`tuning.py`): compare 16 LightGBM settings on September to November 2015.
+3. **Backtest** (`models.py`): seasonal naive, AutoETS, Croston (SBA), TSB, and two LightGBM variants, all refitted at each of eight cutoffs.
+4. **Ensemble** (`evaluation.py`): average the three most accurate models on the four calibration periods.
+5. **Prediction ranges** (`evaluation.py`): built from each model's own errors over the previous 16 weeks.
+6. **Metrics** (`evaluation.py`): WAPE, MASE, RMSE, bias, range coverage, and accuracy around events.
+7. **Inventory** (`inventory.py`): target stock = expected demand over the lead time + safety stock, then checked against actual sales.
+8. **Export** (`export.py`): summary, product list and one file per product for the website.
 
 ## Project structure
 
 ```
 demand-forecasting-lab/
 ├── pipeline/
-│   ├── forecast_lab/       Python package: data, models, evaluation, inventory, export
+│   ├── forecast_lab/       Python package: data, models, tuning, evaluation, inventory, export
+│   ├── experiments/        one-off checks, such as the event-feature comparison
 │   ├── tests/              checks of the core calculations
 │   └── requirements.txt
 ├── outputs/retail/         results consumed by the website
-│   ├── summary.json
+│   ├── summary.json        settings, tuning, ensemble, accuracy and inventory tables
 │   ├── products.json
 │   └── series/<product>.json
 └── docs/methodology.md     plain-language explanation of each step
@@ -68,12 +116,12 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r pipeline/requirements.txt
 cd pipeline
-python -m forecast_lab retail                 # full run, about 4 minutes
-python -m forecast_lab retail --n-items 50    # quick run
-python -m pytest tests                        # checks
+python -m forecast_lab retail                     # full run, about 37 minutes on 4 cores
+python -m forecast_lab retail --reuse-backtests   # reuse saved model forecasts, under a minute
+python -m pytest tests                            # checks
 ```
 
-Settings (store, number of products, horizon, lead time, service level) are in `pipeline/forecast_lab/config.py`.
+Settings (store, number of products, periods, lead time, service level) are in `pipeline/forecast_lab/config.py`.
 
 ## Data
 
@@ -81,8 +129,8 @@ The M5 dataset was released by the University of Nicosia (Makridakis Open Foreca
 
 ## Roadmap
 
-- [x] Retail pipeline: data, three models, backtesting, ranges, stock recommendations
+- [x] Retail pipeline: data, seven models, tuning, backtesting, ranges, stock recommendations
 - [ ] Interactive website on Vercel
 - [ ] Electricity demand (hourly, weather-driven)
 - [ ] Third industry
-- [ ] Improvements: LightGBM tuning, better-calibrated ranges, methods for intermittent demand
+- [ ] Retail improvements: wider tuning search, weather data, simulation-based stock levels
