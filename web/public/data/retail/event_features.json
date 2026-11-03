@@ -1,0 +1,13 @@
+{
+  "model": "LightGBM_direct",
+  "with_event_features": {
+    "wape": 0.7631,
+    "wape_event_days": 0.772,
+    "wape_other_days": 0.7586
+  },
+  "without_event_features": {
+    "wape": 0.7654,
+    "wape_event_days": 0.7754,
+    "wape_other_days": 0.7602
+  }
+}

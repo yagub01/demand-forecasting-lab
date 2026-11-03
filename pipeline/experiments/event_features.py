@@ -4,8 +4,8 @@ Run from the `pipeline` folder after a full run (it reads the chosen LightGBM se
 
     python experiments/event_features.py
 
-Compare the printed WAPE values with the LightGBM_direct row in outputs/retail/summary.json.
-Takes about 7 minutes.
+The result, together with the LightGBM_direct scores from the full run, is saved to
+web/public/data/retail/event_features.json for the website. Takes about 7 minutes.
 """
 
 import json
@@ -25,7 +25,9 @@ EVENT_FEATURES = ["event", "event_type", "days_to_event", "next_event", "days_si
 def main() -> None:
     cfg = RetailConfig()
     root = PIPELINE.parent
-    params = json.loads((root / "outputs" / "retail" / "summary.json").read_text())["tuning"]["chosen"]
+    data_dir = root / "web" / "public" / "data" / "retail"
+    summary = json.loads((data_dir / "summary.json").read_text())
+    params = summary["tuning"]["chosen"]
     sales, products = load_retail(cfg, root / "data" / "raw")
     scored = set(products.loc[products["scored"], "unique_id"])
 
@@ -41,8 +43,15 @@ def main() -> None:
     def wape(d):
         return round(float(d["error"].abs().sum() / d["y"].sum()), 4)
 
-    print("LightGBM_direct without event features:")
-    print({"wape": wape(cv), "wape_event_days": wape(cv[on_event]), "wape_other_days": wape(cv[~on_event])})
+    keys = ["wape", "wape_event_days", "wape_other_days"]
+    with_events = next(m for m in summary["metrics"] if m["model"] == "LightGBM_direct")
+    result = {
+        "model": "LightGBM_direct",
+        "with_event_features": {k: with_events[k] for k in keys},
+        "without_event_features": dict(zip(keys, [wape(cv), wape(cv[on_event]), wape(cv[~on_event])])),
+    }
+    (data_dir / "event_features.json").write_text(json.dumps(result, indent=2))
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

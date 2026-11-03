@@ -18,7 +18,7 @@ from .config import RetailConfig
 def _clean(value):
     """Round floats and turn NaN into null so the JSON stays small and valid."""
     if isinstance(value, (float, np.floating)):
-        return None if np.isnan(value) else round(float(value), 4)
+        return None if np.isnan(value) else round(float(value), 6)
     if isinstance(value, (np.integer,)):
         return int(value)
     if isinstance(value, (np.bool_,)):

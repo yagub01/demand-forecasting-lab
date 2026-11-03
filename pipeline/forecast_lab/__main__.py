@@ -100,7 +100,7 @@ def main() -> None:
         help="reuse model forecasts saved by the last full run (recomputes ranges, metrics and stock only)",
     )
     parser.add_argument("--raw-dir", type=Path, default=REPO_ROOT / "data" / "raw")
-    parser.add_argument("--out", type=Path, help="output folder (default: outputs/<dataset>)")
+    parser.add_argument("--out", type=Path, help="output folder (default: web/public/data/<dataset>)")
     args = parser.parse_args()
 
     cfg = RetailConfig()
@@ -108,7 +108,8 @@ def main() -> None:
         cfg = replace(cfg, n_items=args.n_items)
     if args.store:
         cfg = replace(cfg, store_id=args.store)
-    out_dir = args.out or REPO_ROOT / "outputs" / args.dataset
+    # Results go straight into the website, which serves them as static files.
+    out_dir = args.out or REPO_ROOT / "web" / "public" / "data" / args.dataset
     run_retail(cfg, args.raw_dir, out_dir, tune=not args.no_tuning, reuse=args.reuse_backtests)
 
 

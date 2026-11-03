@@ -4,7 +4,7 @@ A demand forecasting project for supply chain. Statistical and machine-learning 
 
 The first dataset is retail (Walmart). More industries will follow.
 
-**Status:** the Python forecasting pipeline for retail is complete. An interactive website (Next.js, hosted on Vercel) and an electricity-demand dataset are in progress.
+**Status:** the retail pipeline and the website are complete. An electricity-demand dataset is in progress.
 
 ## Retail results
 
@@ -100,12 +100,18 @@ demand-forecasting-lab/
 │   ├── experiments/        one-off checks, such as the event-feature comparison
 │   ├── tests/              checks of the core calculations
 │   └── requirements.txt
-├── outputs/retail/         results consumed by the website
-│   ├── summary.json        settings, tuning, ensemble, accuracy and inventory tables
-│   ├── products.json
-│   └── series/<product>.json
+├── web/                    website (Next.js), deployed on Vercel
+│   ├── src/app/            pages: overview and retail dashboard
+│   ├── src/components/     charts, tables and the product explorer
+│   └── public/data/retail/ results written by the pipeline
+│       ├── summary.json        settings, tuning, ensemble, accuracy and inventory tables
+│       ├── products.json       one entry per scored product
+│       ├── event_features.json event-feature comparison
+│       └── series/<product>.json
 └── docs/methodology.md     plain-language explanation of each step
 ```
+
+The pipeline writes its results straight into `web/public/data/`. The website reads them when it is built, so every page is static: there is no server or database to maintain.
 
 ## Running the pipeline
 
@@ -123,6 +129,29 @@ python -m pytest tests                            # checks
 
 Settings (store, number of products, periods, lead time, service level) are in `pipeline/forecast_lab/config.py`.
 
+## Website
+
+The website has an overview page and a retail dashboard with headline results, model comparison, a product explorer (forecast against actual sales with ranges, and the stock recommendation) and the event analysis.
+
+Run it locally (requires Node.js 20.9 or later):
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Then open http://localhost:3000.
+
+### Deploying on Vercel
+
+1. Sign in at [vercel.com](https://vercel.com) with GitHub and choose **Add New → Project**.
+2. Import the `demand-forecasting-lab` repository.
+3. Set **Root Directory** to `web`. Vercel detects Next.js; keep the default build settings.
+4. Deploy. Every push to `main` then redeploys the site automatically.
+
+After re-running the pipeline, commit the updated files in `web/public/data/` and push; Vercel rebuilds the site with the new results.
+
 ## Data
 
 The M5 dataset was released by the University of Nicosia (Makridakis Open Forecasting Center) and Walmart for the [M5 forecasting competition](https://www.kaggle.com/competitions/m5-forecasting-accuracy) (2020). The pipeline downloads it from a public mirror maintained by [Nixtla](https://github.com/Nixtla/m5-forecasts).
@@ -130,7 +159,7 @@ The M5 dataset was released by the University of Nicosia (Makridakis Open Foreca
 ## Roadmap
 
 - [x] Retail pipeline: data, seven models, tuning, backtesting, ranges, stock recommendations
-- [ ] Interactive website on Vercel
+- [x] Interactive website (Next.js, deployable on Vercel)
 - [ ] Electricity demand (hourly, weather-driven)
 - [ ] Third industry
 - [ ] Retail improvements: wider tuning search, weather data, simulation-based stock levels

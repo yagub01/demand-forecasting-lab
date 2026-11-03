@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/*
+ * Color roles. Chart colors come from a validated palette (colorblind-safe in both modes);
+ * the rest of the page is written against these roles, never raw hex.
+ */
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --wash: rgba(11, 11, 11, 0.04);
+
+  --series-1: #2a78d6; /* actual sales, emphasized model */
+  --series-2: #eb6834; /* forecast */
+  --series-3: #1baf7a;
+  --deemph: #898781; /* models shown for context */
+
+  --good-text: #006300;
+  --status-good: #0ca30c;
+  --status-critical: #d03b3b;
+
+  /* Ordered stages (timeline): one blue ramp, light to dark; text color chosen per fill. */
+  --stage-1: #86b6ef;
+  --stage-2: #2a78d6;
+  --stage-3: #104281;
+  --stage-1-ink: #0b0b0b;
+  --stage-2-ink: #ffffff;
+  --stage-3-ink: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --wash: rgba(255, 255, 255, 0.05);
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --deemph: #898781;
+
+    --good-text: #0ca30c;
+
+    --stage-1: #184f95;
+    --stage-2: #2a78d6;
+    --stage-3: #6da7ec;
+    --stage-1-ink: #ffffff;
+    --stage-2-ink: #ffffff;
+    --stage-3-ink: #0b0b0b;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --ink-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --wash: rgba(255, 255, 255, 0.05);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --deemph: #898781;
+  --good-text: #0ca30c;
+  --stage-1: #184f95;
+  --stage-2: #2a78d6;
+  --stage-3: #6da7ec;
+  --stage-1-ink: #ffffff;
+  --stage-2-ink: #ffffff;
+  --stage-3-ink: #0b0b0b;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--ink-muted);
+  --color-grid: var(--grid);
+  --color-axis: var(--axis);
+  --color-line: var(--border);
+  --color-wash: var(--wash);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-deemph: var(--deemph);
+  --color-good: var(--good-text);
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
