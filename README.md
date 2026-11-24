@@ -18,6 +18,7 @@ A free demand forecasting tool and the research behind it.
 | Methods | Seasonal naive (baseline), seasonal average, Holt-Winters exponential smoothing with a damped trend, simple exponential smoothing, Croston (SBA) for slow sellers, and an ensemble of the three best. |
 | Ranges | Each method's 80% and 95% ranges come from its own errors in testing. |
 | Stock | Expected demand over the lead time plus safety stock (z × error spread × √lead time). |
+| Check against reality | Optionally hides the last forecast-length of the data, forecasts it blind, and compares: total gap, periods inside the 80% and 95% ranges, and whether the recommended stock would have covered real demand. Samples open in this mode. |
 
 The code is in `web/src/lib/forecast/` (`csv.ts`, `models.ts`, `engine.ts`), with tests in `forecast.test.ts`.
 
@@ -118,7 +119,7 @@ demand-forecasting-lab/
 │   ├── tests/              checks of the core calculations
 │   └── requirements.txt
 ├── web/                    website (Next.js), deployed on Vercel
-│   ├── src/app/            pages: forecasting tool and retail case study
+│   ├── src/app/            pages: landing, forecasting tool, retail case study
 │   ├── src/components/     forecasting tool, charts, tables and the product explorer
 │   ├── src/lib/forecast/   forecasting engine that runs in the browser, with tests
 │   ├── public/samples/     sample CSV files offered on the tool (from M5)
@@ -150,7 +151,7 @@ Settings (store, number of products, periods, lead time, service level) are in `
 
 ## Website
 
-The website has the forecasting tool (home page) and the retail case study: headline results, model comparison, a product explorer (forecast against actual sales with ranges, and the stock recommendation) and the event analysis.
+The website has a landing page (`/`), the forecasting tool (`/forecast`) and the retail case study (`/retail`): headline results, model comparison, a product explorer (forecast against actual sales with ranges, and the stock recommendation) and the event analysis.
 
 Run it locally (requires Node.js 20.9 or later):
 

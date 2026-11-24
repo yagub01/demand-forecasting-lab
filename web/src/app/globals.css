@@ -1,90 +1,46 @@
 @import "tailwindcss";
+@import "@fontsource-variable/bricolage-grotesque";
 
 /*
- * Color roles. Chart colors come from a validated palette (colorblind-safe in both modes);
- * the rest of the page is written against these roles, never raw hex.
+ * Brand: pastel colors with bold ink outlines. Light theme only.
+ * Chart colors (--series-*) are validated for color-blind safety against white cards.
  */
 :root {
   color-scheme: light;
-  --page: #f9f9f7;
-  --surface: #fcfcfb;
-  --ink: #0b0b0b;
-  --ink-2: #52514e;
-  --ink-muted: #898781;
-  --grid: #e1e0d9;
-  --axis: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.1);
-  --wash: rgba(11, 11, 11, 0.04);
+  --page: #f5f2ff;
+  --surface: #ffffff;
+  --ink: #1d1638;
+  --ink-2: #4d4668;
+  --ink-muted: #7d7799;
+  --grid: #ebe7f7;
+  --axis: #cfc8e6;
+  --border: #e4def5;
+  --wash: rgba(98, 71, 224, 0.06);
 
-  --series-1: #2a78d6; /* actual sales, emphasized model */
-  --series-2: #eb6834; /* forecast */
-  --series-3: #1baf7a;
-  --deemph: #898781; /* models shown for context */
+  --series-1: #6247e0; /* actual data, emphasized model */
+  --series-2: #f0603f; /* forecast */
+  --series-3: #12a37a;
+  --deemph: #8a84a6;
 
-  --good-text: #006300;
+  --good-text: #12803a;
   --status-good: #0ca30c;
   --status-critical: #d03b3b;
 
-  /* Ordered stages (timeline): one blue ramp, light to dark; text color chosen per fill. */
-  --stage-1: #86b6ef;
-  --stage-2: #2a78d6;
-  --stage-3: #104281;
-  --stage-1-ink: #0b0b0b;
+  --stage-1: #a693f2;
+  --stage-2: #6247e0;
+  --stage-3: #2e1f80;
+  --stage-1-ink: #1d1638;
   --stage-2-ink: #ffffff;
   --stage-3-ink: #ffffff;
-}
 
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) {
-    color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --ink: #f0efec;
-    --ink-2: #c3c2b7;
-    --ink-muted: #898781;
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --border: rgba(255, 255, 255, 0.1);
-    --wash: rgba(255, 255, 255, 0.05);
-
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --deemph: #898781;
-
-    --good-text: #0ca30c;
-
-    --stage-1: #184f95;
-    --stage-2: #2a78d6;
-    --stage-3: #6da7ec;
-    --stage-1-ink: #ffffff;
-    --stage-2-ink: #ffffff;
-    --stage-3-ink: #0b0b0b;
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --page: #0d0d0d;
-  --surface: #1a1a19;
-  --ink: #f0efec;
-  --ink-2: #c3c2b7;
-  --ink-muted: #898781;
-  --grid: #2c2c2a;
-  --axis: #383835;
-  --border: rgba(255, 255, 255, 0.1);
-  --wash: rgba(255, 255, 255, 0.05);
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --deemph: #898781;
-  --good-text: #0ca30c;
-  --stage-1: #184f95;
-  --stage-2: #2a78d6;
-  --stage-3: #6da7ec;
-  --stage-1-ink: #ffffff;
-  --stage-2-ink: #ffffff;
-  --stage-3-ink: #0b0b0b;
+  /* Pastels for decoration and feature cards (never used to encode data). */
+  --lavender: #ddd3ff;
+  --mint: #c4f0dc;
+  --peach: #ffdcc8;
+  --sun: #ffe68f;
+  --sky: #cde8ff;
+  --pink: #ffd3e4;
+  --coral: #ff8a65;
 }
 
 @theme inline {
@@ -102,7 +58,15 @@
   --color-series-3: var(--series-3);
   --color-deemph: var(--deemph);
   --color-good: var(--good-text);
+  --color-lavender: var(--lavender);
+  --color-mint: var(--mint);
+  --color-peach: var(--peach);
+  --color-sun: var(--sun);
+  --color-sky: var(--sky);
+  --color-pink: var(--pink);
+  --color-coral: var(--coral);
   --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
 }
 
 body {
@@ -111,11 +75,81 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Soft accent glow behind the hero. */
-.hero-glow {
-  background: radial-gradient(60% 70% at 50% 0%, color-mix(in srgb, var(--series-1) 16%, transparent), transparent 70%);
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Outlined card with a hard offset shadow. */
+.card {
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: 20px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 0.6rem 1.25rem;
+  font-weight: 650;
+  font-size: 0.95rem;
+  color: var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+.btn:focus-visible {
+  outline: 3px solid var(--series-1);
+  outline-offset: 2px;
+}
+.btn-primary {
+  background: var(--coral);
+}
+.btn-secondary {
+  background: var(--surface);
+}
+
+/* Small tilted label, like a sticker. */
+.sticker {
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
+  background: var(--surface);
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .float {
+    animation: float 6s ease-in-out infinite;
+  }
+  .float-slow {
+    animation: float 8s ease-in-out infinite reverse;
+  }
+}
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt, 0deg));
+  }
+  50% {
+    transform: translateY(-8px) rotate(var(--tilt, 0deg));
+  }
 }

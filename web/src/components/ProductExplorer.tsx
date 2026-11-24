@@ -153,7 +153,7 @@ export function ProductExplorer({ products, models, baseline, defaultProduct, le
       </p>
 
       <div className={`mt-5 grid gap-5 lg:grid-cols-[1fr_17rem] ${loading ? "opacity-60" : ""} transition-opacity`}>
-        <div className="min-w-0 rounded-lg border border-line bg-surface p-4">
+        <div className="min-w-0 card p-4">
           <h3 className="text-sm font-semibold">
             {product.id}: forecast for the 28 days after {series ? shortDate(series.cutoff, true) : "…"}
           </h3>
@@ -179,7 +179,7 @@ export function ProductExplorer({ products, models, baseline, defaultProduct, le
         </div>
 
         <div className="flex flex-col gap-5">
-          <section className="rounded-lg border border-line bg-surface p-4" aria-label="Stock recommendation">
+          <section className="card p-4" aria-label="Stock recommendation">
             <h3 className="text-sm font-semibold">Stock recommendation</h3>
             <p className="mt-1 text-xs text-ink-2">
               Units needed to cover {leadStart ? `${shortDate(leadStart)}–${shortDate(leadEnd!)}` : "the next week"} (
@@ -226,7 +226,7 @@ export function ProductExplorer({ products, models, baseline, defaultProduct, le
             )}
           </section>
 
-          <section className="rounded-lg border border-line bg-surface p-4" aria-label="Product details">
+          <section className="card p-4" aria-label="Product details">
             <h3 className="text-sm font-semibold">About this product</h3>
             <dl className="tabular mt-3 space-y-1.5 text-sm">
               <Row label="Department" value={product.dept.replace("_", " ")} />

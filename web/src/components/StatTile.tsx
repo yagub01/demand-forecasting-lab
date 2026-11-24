@@ -8,7 +8,7 @@ interface Props {
 
 export function StatTile({ label, value, delta, note }: Props) {
   return (
-    <div className="rounded-lg border border-line bg-surface p-4">
+    <div className="card p-4">
       <div className="text-xs text-ink-2">{label}</div>
       <div className="mt-1 text-3xl font-semibold tracking-tight text-ink">{value}</div>
       {delta && (

@@ -81,7 +81,7 @@ export default function RetailPage() {
         title="How the models compare"
         intro={`Error (WAPE) is total forecast error as a share of units sold, across all products and test periods. Lower is better. The ensemble averages the three models that were most accurate on the earlier calibration periods: ${members.join(", ")}.`}
       >
-        <div className="rounded-lg border border-line bg-surface p-4">
+        <div className="card p-4">
           <ModelBars
             ariaLabel="Forecast error (WAPE) by model, lower is better"
             rows={MODEL_ORDER.map((m) => {
@@ -258,7 +258,7 @@ export default function RetailPage() {
         title="How it works"
         intro="The last 280 days of data are split into three stages. Each choice is made on an earlier stage than the one used to report results."
       >
-        <div className="rounded-lg border border-line bg-surface p-4">
+        <div className="card p-4">
           <Timeline
             stages={[
               { name: "Tuning", ...stages.tuning, purpose: "Choose the machine-learning model's settings." },
@@ -321,7 +321,7 @@ function Section({ title, intro, children }: { title: string; intro: string; chi
 
 function TableCard({ title, caption, children }: { title: string; caption: string; children: React.ReactNode }) {
   return (
-    <div className="min-w-0 rounded-lg border border-line bg-surface">
+    <div className="min-w-0 card">
       <div className="px-4 pt-4">
         <h3 className="text-sm font-semibold">{title}</h3>
         <p className="mt-1 text-xs text-ink-2">{caption}</p>
