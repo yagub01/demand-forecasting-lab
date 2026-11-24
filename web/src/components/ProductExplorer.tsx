@@ -167,7 +167,10 @@ export function ProductExplorer({ products, models, baseline, defaultProduct, le
             <ForecastChart
               points={chart.points}
               forecastStart={chart.forecastStart}
-              forecastLabel={MODEL_LABELS[model]}
+              forecastLabel={`${MODEL_LABELS[model]} forecast`}
+              actualLabel="Actual sales"
+              caption="Units sold per day."
+              period="day"
               description={`Daily unit sales of ${product.id} with the ${MODEL_LABELS[model]} forecast and its 80% and 95% ranges.`}
             />
           ) : (

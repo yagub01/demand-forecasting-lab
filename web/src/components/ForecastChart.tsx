@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { num, shortDate, weekday } from "@/lib/format";
+import { formatValue, periodLabel, shortDate, tickDate, type Period } from "@/lib/format";
 
 export interface ChartPoint {
   ds: string;
@@ -15,14 +15,22 @@ export interface ChartPoint {
 
 interface Props {
   points: ChartPoint[];
-  /** Index of the first forecast day in `points`. */
+  /** Index of the first forecast period in `points`. */
   forecastStart: number;
   forecastLabel: string;
+  actualLabel?: string;
   description: string;
+  caption: string;
+  period?: Period;
 }
 
-const HEIGHT = 300; // includes the x-axis band
-const MARGIN = { top: 16, right: 12, bottom: 28, left: 36 };
+const HEIGHT = 320; // includes the x-axis band
+const MARGIN = { top: 16, right: 12, bottom: 28, left: 44 };
+const TICK_STEPS: Record<Period, number[]> = {
+  day: [7, 14, 28, 56, 91, 182],
+  week: [4, 8, 13, 26, 52],
+  month: [1, 3, 6, 12, 24],
+};
 
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -36,13 +44,18 @@ function useWidth<T extends HTMLElement>() {
   return [ref, width] as const;
 }
 
-/** A tick step of 1, 2 or 5 x 10^k giving about `count` ticks; at least 1 (sales are whole units). */
+/** A step of 1, 2 or 5 x 10^k giving about `count` ticks. */
 function niceStep(max: number, count = 4): number {
-  const raw = Math.max(max, 1) / count;
+  const raw = Math.max(max, 1e-9) / count;
   const power = 10 ** Math.floor(Math.log10(raw));
   const n = raw / power;
-  const step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * power;
-  return Math.max(1, step);
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * power;
+}
+
+function compact(v: number): string {
+  if (Math.abs(v) >= 1e6) return `${+(v / 1e6).toFixed(1)}M`;
+  if (Math.abs(v) >= 1e4) return `${+(v / 1e3).toFixed(1)}K`;
+  return v.toLocaleString("en-US", { maximumFractionDigits: 2 });
 }
 
 function linePath(values: (number | null | undefined)[], x: (i: number) => number, y: (v: number) => number) {
@@ -66,7 +79,15 @@ function bandPath(lo: number[], hi: number[], start: number, x: (i: number) => n
   return `M${upper.join("L")}L${lower.join("L")}Z`;
 }
 
-export function ForecastChart({ points, forecastStart, forecastLabel, description }: Props) {
+export function ForecastChart({
+  points,
+  forecastStart,
+  forecastLabel,
+  actualLabel = "Actual",
+  description,
+  caption,
+  period = "day",
+}: Props) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
@@ -75,28 +96,32 @@ export function ForecastChart({ points, forecastStart, forecastLabel, descriptio
   const plotH = HEIGHT - MARGIN.top - MARGIN.bottom;
   const n = points.length;
 
-  const { yMax, step } = useMemo(() => {
-    const max = Math.max(1, ...points.map((p) => Math.max(p.actual ?? 0, p.hi95 ?? 0)));
-    const s = niceStep(max);
-    return { yMax: Math.ceil(max / s) * s, step: s };
+  const { yMin, yMax, step } = useMemo(() => {
+    const vals = points.flatMap((p) => [p.actual, p.yhat, p.hi95, p.lo95].filter((v): v is number => v != null));
+    const max = Math.max(...vals, 0);
+    const min = Math.min(...vals, 0);
+    const s = niceStep(max - min);
+    return { yMin: Math.floor(min / s) * s, yMax: Math.max(s, Math.ceil(max / s) * s), step: s };
   }, [points]);
 
   const x = (i: number) => MARGIN.left + (n <= 1 ? 0 : (i / (n - 1)) * plotW);
-  const y = (v: number) => MARGIN.top + plotH - (v / yMax) * plotH;
+  const y = (v: number) => MARGIN.top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
 
-  const yTicks = Array.from({ length: Math.round(yMax / step) + 1 }, (_, k) => k * step);
-  // Date ticks counted from the forecast start, so the start date always gets a label.
-  const dayStep = (n > 120 ? 28 : 14) * (width < 520 ? 2 : 1);
+  const yTicks: number[] = [];
+  for (let t = yMin; t <= yMax + step / 2; t += step) yTicks.push(+t.toFixed(10));
+  const maxTicks = width < 520 ? 4 : 7;
+  const dayStep = TICK_STEPS[period].find((s) => n / s <= maxTicks) ?? TICK_STEPS[period].at(-1)!;
   const xTicks: number[] = [];
   for (let i = forecastStart; i >= 0; i -= dayStep) xTicks.unshift(i);
   for (let i = forecastStart + dayStep; i < n; i += dayStep) xTicks.push(i);
 
   const fc = points.slice(forecastStart);
+  const hasActualInForecast = fc.some((p) => p.actual != null);
   const band95 = bandPath(fc.map((p) => p.lo95 ?? 0), fc.map((p) => p.hi95 ?? 0), forecastStart, x, y);
   const band80 = bandPath(fc.map((p) => p.lo80 ?? 0), fc.map((p) => p.hi80 ?? 0), forecastStart, x, y);
   const actualPath = linePath(points.map((p) => p.actual), x, y);
   const forecastPath = linePath(points.map((p, i) => (i >= forecastStart ? p.yhat : null)), x, y);
-  const boundaryX = (x(forecastStart - 1) + x(forecastStart)) / 2;
+  const boundaryX = forecastStart > 0 ? (x(forecastStart - 1) + x(forecastStart)) / 2 : x(0);
 
   function indexFromPointer(clientX: number, target: Element) {
     const rect = target.getBoundingClientRect();
@@ -116,16 +141,16 @@ export function ForecastChart({ points, forecastStart, forecastLabel, descriptio
 
   const p = active != null ? points[active] : null;
   const tooltipLeft = active != null ? x(active) : 0;
-  const flip = tooltipLeft > width - 200;
+  const flip = tooltipLeft > width - 210;
 
   return (
     <figure className="m-0">
       <ul className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-2" aria-label="Legend">
         <li className="flex items-center gap-2">
-          <span className="inline-block h-0.5 w-4 rounded bg-series-1" aria-hidden /> Actual sales
+          <span className="inline-block h-0.5 w-4 rounded bg-series-1" aria-hidden /> {actualLabel}
         </li>
         <li className="flex items-center gap-2">
-          <span className="inline-block h-0.5 w-4 rounded bg-series-2" aria-hidden /> {forecastLabel} forecast
+          <span className="inline-block h-0.5 w-4 rounded bg-series-2" aria-hidden /> {forecastLabel}
         </li>
         <li className="flex items-center gap-2">
           <span className="inline-block h-3 w-4 rounded-sm bg-series-2/25" aria-hidden /> 80% range
@@ -135,14 +160,14 @@ export function ForecastChart({ points, forecastStart, forecastLabel, descriptio
         </li>
       </ul>
 
-      <div ref={ref} className="relative" style={{ height: HEIGHT }}>
+      <div ref={ref} className="relative overflow-hidden" style={{ height: HEIGHT }}>
         <svg
           width={width}
           height={HEIGHT}
           role="img"
           aria-label={description}
           tabIndex={0}
-          className="block touch-pan-y outline-none focus-visible:ring-2 focus-visible:ring-series-1"
+          className="block touch-pan-y rounded outline-none focus-visible:ring-2 focus-visible:ring-series-1"
           onPointerMove={(e) => setActive(indexFromPointer(e.clientX, e.currentTarget))}
           onPointerLeave={() => setActive(null)}
           onKeyDown={onKeyDown}
@@ -150,19 +175,32 @@ export function ForecastChart({ points, forecastStart, forecastLabel, descriptio
         >
           {yTicks.map((t) => (
             <g key={t}>
-              <line x1={MARGIN.left} x2={width - MARGIN.right} y1={y(t)} y2={y(t)} stroke={t === 0 ? "var(--axis)" : "var(--grid)"} strokeWidth={1} />
+              <line
+                x1={MARGIN.left}
+                x2={width - MARGIN.right}
+                y1={y(t)}
+                y2={y(t)}
+                stroke={t === 0 ? "var(--axis)" : "var(--grid)"}
+                strokeWidth={1}
+              />
               <text x={MARGIN.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="tabular fill-muted text-[11px]">
-                {t.toLocaleString("en-US")}
+                {compact(t)}
               </text>
             </g>
           ))}
           {xTicks.map((i) => (
             <text key={i} x={x(i)} y={HEIGHT - 8} textAnchor="middle" className="tabular fill-muted text-[11px]">
-              {shortDate(points[i].ds)}
+              {tickDate(points[i].ds, period)}
             </text>
           ))}
 
-          {/* Forecast period: shaded ranges, boundary line and label */}
+          <rect
+            x={boundaryX}
+            y={MARGIN.top}
+            width={Math.max(0, width - MARGIN.right - boundaryX)}
+            height={plotH}
+            fill="var(--wash)"
+          />
           <path d={band95} fill="var(--series-2)" fillOpacity={0.1} />
           <path d={band80} fill="var(--series-2)" fillOpacity={0.16} />
           <line x1={boundaryX} x2={boundaryX} y1={MARGIN.top} y2={MARGIN.top + plotH} stroke="var(--axis)" strokeWidth={1} />
@@ -188,22 +226,26 @@ export function ForecastChart({ points, forecastStart, forecastLabel, descriptio
 
         {p && active != null && (
           <div
-            className="pointer-events-none absolute top-2 z-10 w-44 rounded-md border border-line bg-surface px-3 py-2 text-xs shadow-sm"
+            className="pointer-events-none absolute top-2 z-10 w-48 rounded-lg border border-line bg-surface px-3 py-2 text-xs shadow-md"
             style={flip ? { right: width - tooltipLeft + 12 } : { left: tooltipLeft + 12 }}
             role="status"
           >
-            <div className="mb-1.5 text-ink-2">
-              {weekday(p.ds)}, {shortDate(p.ds, true)}
-            </div>
-            <TooltipRow color="var(--series-1)" value={p.actual == null ? "–" : num(p.actual, 0)} label="Actual" />
+            <div className="mb-1.5 text-ink-2">{periodLabel(p.ds, period)}</div>
+            {p.actual != null && <TooltipRow color="var(--series-1)" value={formatValue(p.actual)} label={actualLabel} />}
             {p.yhat != null && (
               <>
-                <TooltipRow color="var(--series-2)" value={num(p.yhat, 1)} label="Forecast" />
+                <TooltipRow color="var(--series-2)" value={formatValue(p.yhat)} label="Forecast" />
                 <div className="mt-1 text-ink-2">
-                  80% range <span className="tabular font-semibold text-ink">{p.lo80}–{p.hi80}</span>
+                  80% range{" "}
+                  <span className="tabular font-semibold text-ink">
+                    {formatValue(p.lo80!)}–{formatValue(p.hi80!)}
+                  </span>
                 </div>
                 <div className="text-ink-2">
-                  95% range <span className="tabular font-semibold text-ink">{p.lo95}–{p.hi95}</span>
+                  95% range{" "}
+                  <span className="tabular font-semibold text-ink">
+                    {formatValue(p.lo95!)}–{formatValue(p.hi95!)}
+                  </span>
                 </div>
               </>
             )}
@@ -212,11 +254,11 @@ export function ForecastChart({ points, forecastStart, forecastLabel, descriptio
       </div>
 
       <figcaption className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2">
-        <span>Units sold per day. Hover or use the arrow keys to read values.</span>
+        <span>{caption} Hover or use the arrow keys to read values.</span>
         <button
           type="button"
           onClick={() => setShowTable((s) => !s)}
-          className="rounded border border-line px-2 py-1 text-ink hover:bg-wash"
+          className="rounded-md border border-line px-2.5 py-1 text-ink hover:bg-wash"
           aria-expanded={showTable}
         >
           {showTable ? "Hide" : "Show"} forecast table
@@ -224,12 +266,12 @@ export function ForecastChart({ points, forecastStart, forecastLabel, descriptio
       </figcaption>
 
       {showTable && (
-        <div className="mt-3 max-h-80 overflow-auto rounded border border-line">
+        <div className="mt-3 max-h-80 overflow-auto rounded-lg border border-line">
           <table className="tabular w-full text-left text-xs">
             <thead className="sticky top-0 bg-surface text-ink-2">
               <tr>
-                <th className="px-3 py-2 font-medium">Date</th>
-                <th className="px-3 py-2 text-right font-medium">Actual</th>
+                <th className="px-3 py-2 font-medium">{period === "day" ? "Date" : period === "week" ? "Week of" : "Month"}</th>
+                {hasActualInForecast && <th className="px-3 py-2 text-right font-medium">{actualLabel}</th>}
                 <th className="px-3 py-2 text-right font-medium">Forecast</th>
                 <th className="px-3 py-2 text-right font-medium">80% range</th>
                 <th className="px-3 py-2 text-right font-medium">95% range</th>
@@ -238,16 +280,14 @@ export function ForecastChart({ points, forecastStart, forecastLabel, descriptio
             <tbody>
               {fc.map((r) => (
                 <tr key={r.ds} className="border-t border-line">
-                  <td className="px-3 py-1.5">
-                    {weekday(r.ds)} {shortDate(r.ds)}
-                  </td>
-                  <td className="px-3 py-1.5 text-right">{r.actual ?? "–"}</td>
-                  <td className="px-3 py-1.5 text-right">{num(r.yhat, 1)}</td>
+                  <td className="px-3 py-1.5">{period === "month" ? tickDate(r.ds, "month") : shortDate(r.ds, true)}</td>
+                  {hasActualInForecast && <td className="px-3 py-1.5 text-right">{r.actual == null ? "–" : formatValue(r.actual)}</td>}
+                  <td className="px-3 py-1.5 text-right">{r.yhat == null ? "–" : formatValue(r.yhat)}</td>
                   <td className="px-3 py-1.5 text-right">
-                    {r.lo80}–{r.hi80}
+                    {formatValue(r.lo80!)}–{formatValue(r.hi80!)}
                   </td>
                   <td className="px-3 py-1.5 text-right">
-                    {r.lo95}–{r.hi95}
+                    {formatValue(r.lo95!)}–{formatValue(r.hi95!)}
                   </td>
                 </tr>
               ))}

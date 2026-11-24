@@ -43,3 +43,38 @@ export function addDays(iso: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+export type Period = "day" | "week" | "month";
+
+/** Values under 100 get one decimal (unless whole), larger ones none: 3.4, 12, 1,250. */
+export function formatValue(v: number): string {
+  const digits = Math.abs(v) >= 100 || Number.isInteger(v) ? 0 : 1;
+  return v.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+/** Axis label for a period start date. */
+export function tickDate(iso: string, period: Period): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (period === "month") {
+    return d.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" }).replace(" ", " '");
+  }
+  return shortDate(iso);
+}
+
+/** Tooltip heading for a period. */
+export function periodLabel(iso: string, period: Period): string {
+  if (period === "month")
+    return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  if (period === "week") return `Week of ${shortDate(iso, true)}`;
+  return `${weekday(iso)}, ${shortDate(iso, true)}`;
+}
+
+export const PERIOD_WORD: Record<Period, [string, string]> = {
+  day: ["day", "days"],
+  week: ["week", "weeks"],
+  month: ["month", "months"],
+};
+
+export function plural(n: number, period: Period): string {
+  return `${n.toLocaleString("en-US")} ${PERIOD_WORD[period][n === 1 ? 0 : 1]}`;
+}

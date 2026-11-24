@@ -29,7 +29,8 @@
       "@data/*": [
         "./public/data/*"
       ]
-    }
+    },
+    "allowImportingTsExtensions": true
   },
   "include": [
     "next-env.d.ts",

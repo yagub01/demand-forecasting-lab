@@ -39,9 +39,9 @@ export default function RetailPage() {
   const members = summary.ensemble.members.map((m) => MODEL_LABELS[m]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <header className="max-w-3xl">
-        <p className="text-sm text-ink-2">Industry 1 of 3</p>
+        <p className="text-sm text-ink-2">Case study</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">Retail demand forecasting</h1>
         <p className="mt-3 leading-relaxed text-ink-2">
           {dataset.n_products} randomly selected products from one Walmart store in California, forecast{" "}

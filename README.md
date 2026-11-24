@@ -1,10 +1,27 @@
 # Demand Forecasting Lab
 
-A demand forecasting project for supply chain. Statistical and machine-learning models are compared on the same historical test periods, every forecast includes a range of likely outcomes, and each forecast is converted into a recommended stock level that is checked against actual sales.
+A free demand forecasting tool and the research behind it.
 
-The first dataset is retail (Walmart). More industries will follow.
+**The tool:** upload a CSV of past sales (daily, weekly or monthly) and get a forecast you can plan with. Five forecasting methods and an ensemble are tested on your own recent data, the most accurate one is recommended, every period gets an 80% and a 95% range, and the forecast is turned into a recommended stock level for the lead time and service level you choose. Everything runs in the browser; the file is never uploaded.
 
-**Status:** the retail pipeline and the website are complete. An electricity-demand dataset is in progress.
+**The case study:** the same approach, plus machine-learning models, tested on 500 Walmart products (results below and on the site).
+
+**Status:** the tool, the retail case study and the website are complete. An electricity-demand case study is in progress.
+
+## The forecasting tool
+
+| Step | What happens |
+|---|---|
+| Read the file | Detects the date and quantity columns (comma, semicolon or tab separated; ISO, US or European dates). Rows on the same date are added up; missing dates count as zero. An optional product column lets you forecast one product or all combined. |
+| Detect frequency | Daily, weekly or monthly, with a seasonal cycle of 7, 52 or 12 periods. |
+| Test the methods | Up to four cuts in the most recent history. At each cut every method sees only earlier data and forecasts the next periods; the forecast error (WAPE) and bias are measured against what happened. |
+| Methods | Seasonal naive (baseline), seasonal average, Holt-Winters exponential smoothing with a damped trend, simple exponential smoothing, Croston (SBA) for slow sellers, and an ensemble of the three best. |
+| Ranges | Each method's 80% and 95% ranges come from its own errors in testing. |
+| Stock | Expected demand over the lead time plus safety stock (z × error spread × √lead time). |
+
+The code is in `web/src/lib/forecast/` (`csv.ts`, `models.ts`, `engine.ts`), with tests in `forecast.test.ts`.
+
+Holt-Winters weights are chosen by how well they forecast a full horizon on the most recent history, not by one-step-ahead fit: on the grocery sample, one-step fitting gave 55% error against 49% for horizon-based fitting.
 
 ## Retail results
 
@@ -101,8 +118,10 @@ demand-forecasting-lab/
 │   ├── tests/              checks of the core calculations
 │   └── requirements.txt
 ├── web/                    website (Next.js), deployed on Vercel
-│   ├── src/app/            pages: overview and retail dashboard
-│   ├── src/components/     charts, tables and the product explorer
+│   ├── src/app/            pages: forecasting tool and retail case study
+│   ├── src/components/     forecasting tool, charts, tables and the product explorer
+│   ├── src/lib/forecast/   forecasting engine that runs in the browser, with tests
+│   ├── public/samples/     sample CSV files offered on the tool (from M5)
 │   └── public/data/retail/ results written by the pipeline
 │       ├── summary.json        settings, tuning, ensemble, accuracy and inventory tables
 │       ├── products.json       one entry per scored product
@@ -131,17 +150,16 @@ Settings (store, number of products, periods, lead time, service level) are in `
 
 ## Website
 
-The website has an overview page and a retail dashboard with headline results, model comparison, a product explorer (forecast against actual sales with ranges, and the stock recommendation) and the event analysis.
+The website has the forecasting tool (home page) and the retail case study: headline results, model comparison, a product explorer (forecast against actual sales with ranges, and the stock recommendation) and the event analysis.
 
 Run it locally (requires Node.js 20.9 or later):
 
 ```bash
 cd web
 npm install
-npm run dev
+npm run dev     # then open http://localhost:3000
+npm test        # tests of the forecasting engine
 ```
-
-Then open http://localhost:3000.
 
 ### Deploying on Vercel
 
@@ -160,6 +178,7 @@ The M5 dataset was released by the University of Nicosia (Makridakis Open Foreca
 
 - [x] Retail pipeline: data, seven models, tuning, backtesting, ranges, stock recommendations
 - [x] Interactive website (Next.js, deployable on Vercel)
+- [x] Forecasting tool for your own data
 - [ ] Electricity demand (hourly, weather-driven)
 - [ ] Third industry
 - [ ] Retail improvements: wider tuning search, weather data, simulation-based stock levels
